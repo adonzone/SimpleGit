@@ -1,0 +1,71 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-binaries:
+    strategy:
+      matrix:
+        include:
+          - os: macos-latest
+            asset: sgit-darwin-arm64
+            ext: ""
+          - os: macos-13
+            asset: sgit-darwin-x64
+            ext: ""
+          - os: ubuntu-latest
+            asset: sgit-linux-x64
+            ext: ""
+          - os: windows-latest
+            asset: sgit-win32-x64.exe
+            ext: ".exe"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PyInstaller
+        run: pip install ".[build]"
+      - name: Build single-file executable
+        run: |
+          pyinstaller --onefile --name sgit simplegit/__main__.py
+          mkdir -p release-assets
+          cp "dist/sgit${{ matrix.ext }}" "release-assets/${{ matrix.asset }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: release-assets/${{ matrix.asset }}
+
+  publish:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+      - name: Build Python sdist/wheel and zipapp
+        run: |
+          pip install build
+          python -m build --outdir release-assets
+          python scripts/build_zipapp.py
+          cp dist/sgit.pyz release-assets/sgit.pyz
+      - name: Generate SHA256SUMS.txt
+        working-directory: release-assets
+        run: sha256sum * > SHA256SUMS.txt
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*

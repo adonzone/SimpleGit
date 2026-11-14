@@ -1,0 +1,21 @@
+PackageIdentifier: AdonaiAfewerki.SimpleGit
+PackageVersion: 0.1.0
+PackageLocale: en-US
+Publisher: Adonai Afewerki
+PackageName: SimpleGit
+License: GPL-3.0-or-later
+ShortDescription: Simplified Git CLI (`sgit`) with one-shot workflows and interactive terminal UI
+Moniker: sgit
+Commands:
+  - sgit
+Dependencies:
+  PackageDependencies:
+    - PackageIdentifier: Git.Git
+Installers:
+  - Architecture: x64
+    InstallerType: portable
+    NestedInstallerType: portable
+    InstallerUrl: https://github.com/AdonZ/SimpleGit/releases/download/v0.1.0/sgit-win32-x64.exe
+    InstallerSha256: REPLACE_WITH_WIN32_X64_SHA256
+ManifestType: singleton
+ManifestVersion: 1.6.0

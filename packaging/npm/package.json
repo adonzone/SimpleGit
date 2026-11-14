@@ -1,0 +1,30 @@
+{
+  "name": "sgit-cli",
+  "version": "0.1.0",
+  "description": "SimpleGit (sgit): simplified Git workflows, native .git inspection, and interactive CLI",
+  "license": "GPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AdonZ/SimpleGit.git"
+  },
+  "bin": {
+    "sgit": "./bin/sgit.js"
+  },
+  "scripts": {
+    "postinstall": "node ./scripts/postinstall.js"
+  },
+  "files": [
+    "bin/",
+    "scripts/"
+  ],
+  "keywords": [
+    "git",
+    "cli",
+    "simplegit",
+    "sgit",
+    "vcs"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
