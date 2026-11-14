@@ -1,0 +1,2 @@
+# SimpleGit
+A simplified Git
