@@ -1,0 +1,235 @@
+name: Publish Package Managers on Main
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  check-version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.ver.outputs.version }}
+      tag: ${{ steps.ver.outputs.tag }}
+      should_release: ${{ steps.ver.outputs.should_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version from pyproject.toml
+        id: ver
+        run: |
+          VERSION=$(python3 -c '
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+              print(tomllib.load(f)["project"]["version"])
+          ')
+          TAG="v${VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "Tag $TAG already exists; skipping release."
+            echo "should_release=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_release=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-binaries:
+    needs: check-version
+    if: needs.check-version.outputs.should_release == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            asset: sgit-darwin-arm64
+            ext: ""
+          - os: macos-13
+            asset: sgit-darwin-x64
+            ext: ""
+          - os: ubuntu-latest
+            asset: sgit-linux-x64
+            ext: ""
+          - os: windows-latest
+            asset: sgit-win32-x64.exe
+            ext: ".exe"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install PyInstaller
+        run: pip install ".[build]"
+      - name: Build standalone binary
+        run: |
+          pyinstaller --onefile --name sgit simplegit/__main__.py
+          mkdir -p release-assets
+          cp "dist/sgit${{ matrix.ext }}" "release-assets/${{ matrix.asset }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset }}
+          path: release-assets/${{ matrix.asset }}
+
+  github-release:
+    needs: [check-version, build-binaries]
+    runs-on: ubuntu-latest
+    outputs:
+      win32_sha256: ${{ steps.hashes.outputs.win32_sha256 }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Build Python sdist/wheel and zipapp
+        run: |
+          pip install build
+          python -m build --outdir release-assets
+          python scripts/build_zipapp.py
+          cp dist/sgit.pyz release-assets/sgit.pyz
+
+      - name: Generate SHA256SUMS.txt
+        id: hashes
+        working-directory: release-assets
+        run: |
+          sha256sum * > SHA256SUMS.txt
+          WIN_SHA=$(sha256sum sgit-win32-x64.exe | awk '{print $1}')
+          echo "win32_sha256=${WIN_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Create Git tag and GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.check-version.outputs.tag }}
+          name: ${{ needs.check-version.outputs.tag }}
+          generate_release_notes: true
+          files: release-assets/*
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: python-dist
+          path: |
+            release-assets/*.whl
+            release-assets/*.tar.gz
+
+  publish-npm:
+    needs: [check-version, github-release]
+    if: ${{ vars.ENABLE_NPM == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          registry-url: "https://registry.npmjs.org"
+      - name: Publish sgit-cli to npm
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public ./packaging/npm
+
+  publish-pypi:
+    needs: [check-version, github-release]
+    if: ${{ vars.ENABLE_PYPI == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: python-dist
+          path: dist
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
+
+  publish-chocolatey:
+    needs: [check-version, github-release]
+    if: ${{ vars.ENABLE_CHOCO == 'true' }}
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update checksum and push to Chocolatey
+        shell: pwsh
+        env:
+          CHOCO_API_KEY: ${{ secrets.CHOCO_API_KEY }}
+          WIN_SHA: ${{ needs.github-release.outputs.win32_sha256 }}
+          VERSION: ${{ needs.check-version.outputs.version }}
+        run: |
+          $ps1 = "packaging/choco/tools/chocolateyinstall.ps1"
+          (Get-Content $ps1) -replace 'REPLACE_WITH_WIN32_X64_SHA256', $env:WIN_SHA | Set-Content $ps1
+          choco pack packaging/choco/simplegit.nuspec --version $env:VERSION --outputdirectory packaging/choco
+          choco push "packaging/choco/simplegit.$($env:VERSION).nupkg" --source https://push.chocolatey.org/ --api-key $env:CHOCO_API_KEY
+
+  publish-homebrew:
+    needs: [check-version, github-release]
+    if: ${{ vars.ENABLE_HOMEBREW == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/homebrew-tap
+          token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          path: tap
+      - name: Update Homebrew formula
+        env:
+          TAG: ${{ needs.check-version.outputs.tag }}
+        run: |
+          TAR_SHA=$(curl -fsSL "https://github.com/${{ github.repository }}/archive/refs/tags/${TAG}.tar.gz" | sha256sum | awk '{print $1}')
+          mkdir -p tap/Formula
+          sed "s/REPLACE_WITH_RELEASE_TARBALL_SHA256/${TAR_SHA}/g" source/packaging/homebrew/simplegit.rb > tap/Formula/simplegit.rb
+          cd tap
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Formula/simplegit.rb
+          git commit -m "simplegit ${TAG}"
+          git push
+
+  publish-scoop:
+    needs: [check-version, github-release]
+    if: ${{ vars.ENABLE_SCOOP == 'true' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: source
+      - uses: actions/checkout@v4
+        with:
+          repository: ${{ github.repository_owner }}/scoop-bucket
+          token: ${{ secrets.SCOOP_BUCKET_TOKEN }}
+          path: bucket
+      - name: Update Scoop manifest
+        env:
+          TAG: ${{ needs.check-version.outputs.tag }}
+          WIN_SHA: ${{ needs.github-release.outputs.win32_sha256 }}
+        run: |
+          mkdir -p bucket/bucket
+          sed "s/REPLACE_WITH_WIN32_X64_SHA256/${WIN_SHA}/g" source/packaging/scoop/simplegit.json > bucket/bucket/simplegit.json
+          cd bucket
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add bucket/simplegit.json
+          git commit -m "simplegit ${TAG}"
+          git push
+
+  publish-winget:
+    needs: [check-version, github-release]
+    if: ${{ vars.ENABLE_WINGET == 'true' }}
+    runs-on: windows-latest
+    steps:
+      - uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: AdonaiAfewerki.SimpleGit
+          version: ${{ needs.check-version.outputs.version }}
+          installers-regex: 'sgit-win32-x64\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}

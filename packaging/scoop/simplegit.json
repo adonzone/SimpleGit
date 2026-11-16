@@ -1,0 +1,22 @@
+{
+  "version": "0.1.0",
+  "description": "Simplified Git CLI with native .git inspection and interactive terminal UI",
+  "homepage": "https://github.com/adonzone/SimpleGit",
+  "license": "GPL-3.0-or-later",
+  "depends": "git",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/adonzone/SimpleGit/releases/download/v0.1.0/sgit-win32-x64.exe#/sgit.exe",
+      "hash": "REPLACE_WITH_WIN32_X64_SHA256"
+    }
+  },
+  "bin": "sgit.exe",
+  "checkver": "github",
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/adonzone/SimpleGit/releases/download/v$version/sgit-win32-x64.exe#/sgit.exe"
+      }
+    }
+  }
+}

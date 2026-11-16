@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>simplegit</id>
+    <version>0.1.0</version>
+    <title>SimpleGit (sgit)</title>
+    <authors>Adonai Afewerki</authors>
+    <projectUrl>https://github.com/adonzone/SimpleGit</projectUrl>
+    <licenseUrl>https://github.com/adonzone/SimpleGit/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>A simplified, cross-platform Git CLI with native .git inspection, one-shot workflows, colored error diagnostics, and an interactive terminal UI.</description>
+    <summary>Simplified Git CLI (`sgit`)</summary>
+    <tags>git cli vcs simplegit sgit</tags>
+    <dependencies>
+      <dependency id="git" />
+    </dependencies>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>
