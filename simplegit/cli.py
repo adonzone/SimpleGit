@@ -51,7 +51,19 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _ensure_utf8_streams() -> None:
+    """Ensure stdout/stderr can encode Unicode symbols on Windows cp1252 consoles."""
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(encoding="utf-8", errors="replace")
+            except (OSError, ValueError):
+                pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _ensure_utf8_streams()
     parser = build_parser()
     args = parser.parse_args(argv)
 
