@@ -42,7 +42,7 @@ sgit save "Add login validation"  # Diff-discover + stage + commit in one comman
 sgit save -t "Tracked only"       # Stage only tracked files found in git diff
 sgit save -p "Update docs"        # Save and push immediately
 sgit switch -c feat/auth          # Create and switch to a new branch
-sgit clone -gh AdonZ/SimpleGit     # Clone from GitHub (or -gl for GitLab)
+sgit clone -gh adonzone/SimpleGit  # Clone from GitHub (or -gl for GitLab)
 sgit clone /path/to/repo.git      # Or clone any .git URL / local .git directory
 sgit sync                         # Pull (--rebase) and push (auto-sets upstream)
 sgit undo commit                  # Safely undo last commit, keeping edits staged
@@ -55,7 +55,8 @@ sgit conflicts                    # Inspect & resolve merge conflicts (--ours/--
 sgit ignore --template python     # Add starter .gitignore patterns cleanly
 sgit tag v0.1.0 --push            # Create and push a release tag
 sgit doctor                       # Check Git, identity, auth, and repo health
-sgit viewer --files               # Visual graph of branches, commits, and files
+sgit viewer --files               # Visual Network graph (X=Time, Y=Branches)
+sgit workflow "daily-sync"        # Create, edit (-e), or run custom workflows
 ```
 
 ## Running Tests

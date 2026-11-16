@@ -7,7 +7,7 @@ import zlib
 from pathlib import Path
 
 from simplegit.core.models import GitObject, RepoLocation
-from simplegit.errors import NotARepoError
+from simplegit.errors import NotARepoError, SimpleGitError
 
 _OP_SENTINELS: tuple[tuple[str, str], ...] = (
     ("MERGE_HEAD", "MERGING"),
@@ -127,17 +127,26 @@ def read_loose_object(common_dir: Path, sha_prefix: str) -> GitObject | None:
 
     obj_path = matches[0]
     full_sha = cleaned[:2] + obj_path.name
-    raw = zlib.decompress(obj_path.read_bytes())
-    nul_idx = raw.find(b"\0")
-    if nul_idx == -1:
-        return None
-
-    header = raw[:nul_idx].decode("utf-8", errors="replace")
-    body = raw[nul_idx + 1 :]
-    kind, size_str = header.split(" ", 1)
-    size = int(size_str)
+    try:
+        raw = zlib.decompress(obj_path.read_bytes())
+        nul_idx = raw.find(b"\0")
+        if nul_idx == -1:
+            raise ValueError("Missing NUL header separator")
+        header = raw[:nul_idx].decode("utf-8", errors="replace")
+        body = raw[nul_idx + 1 :]
+        kind, size_str = header.split(" ", 1)
+        size = int(size_str)
+    except (zlib.error, ValueError, OSError) as exc:
+        raise SimpleGitError(
+            f"Corrupt or unreadable Git object `{full_sha}`.",
+            hint="Run `git fsck` to check repository integrity.",
+            details=str(exc),
+        ) from exc
     if len(body) != size:
-        raise ValueError(f"Corrupt Git object {full_sha}: expected {size} bytes, got {len(body)}")
+        raise SimpleGitError(
+            f"Corrupt Git object `{full_sha}`: expected {size} bytes, got {len(body)}.",
+            hint="Run `git fsck` to check repository integrity.",
+        )
 
     return GitObject(kind=kind, size=size, sha=full_sha, content=body, source="loose")
 

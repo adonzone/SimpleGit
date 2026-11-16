@@ -169,12 +169,16 @@ def generate_ssh_key(email: str, ssh_dir: Path | None = None) -> Path:
             f"SSH key already exists at {key_path}.",
             hint=f"Copy `{key_path}.pub` to your GitHub/GitLab SSH key settings.",
         )
-    subprocess.run(
-        [ssh_keygen, "-t", "ed25519", "-C", email, "-f", str(key_path), "-N", ""],
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    try:
+        subprocess.run(
+            [ssh_keygen, "-t", "ed25519", "-C", email, "-f", str(key_path), "-N", ""],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, OSError) as exc:
+        err_detail = getattr(exc, "stderr", None) or str(exc)
+        raise SimpleGitError("Failed to generate ed25519 SSH key.", details=err_detail) from exc
     return Path(f"{key_path}.pub")
 
 

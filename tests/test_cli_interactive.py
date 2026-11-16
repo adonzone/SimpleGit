@@ -27,6 +27,31 @@ class TestCliAndInteractive(RepoTestCase):
         self.assertIn("sgit init", out)
         self.assertNotIn("\033[", out)
 
+    def test_missing_git_binary_shows_install_docs(self) -> None:
+        stderr = io.StringIO()
+        with patch("shutil.which", return_value=None), redirect_stderr(stderr):
+            rc = main(["--no-color", "status"])
+        self.assertEqual(rc, 1)
+        out = stderr.getvalue()
+        self.assertIn("not installed", out)
+        self.assertIn("https://git-scm.com/downloads", out)
+        self.assertIn("https://git-scm.com/doc", out)
+
+    def test_invalid_cli_usage_uses_styled_error_banner(self) -> None:
+        stderr = io.StringIO()
+        with redirect_stderr(stderr), self.assertRaises(SystemExit) as ctx:
+            main(["--no-color", "--unknown-flag"])
+        self.assertEqual(ctx.exception.code, 2)
+        self.assertIn("Invalid command usage", stderr.getvalue())
+
+    def test_invalid_savepoint_index_raises_friendly_error(self) -> None:
+        repo = self.make_repo()
+        stderr = io.StringIO()
+        with self.chdir(repo), redirect_stderr(stderr):
+            rc = main(["--no-color", "savepoint", "pop", "not-a-number"])
+        self.assertEqual(rc, 1)
+        self.assertIn("Invalid savepoint index", stderr.getvalue())
+
     def test_inspect_command_uses_native_loose_object(self) -> None:
         repo = self.make_repo()
         stdout = io.StringIO()

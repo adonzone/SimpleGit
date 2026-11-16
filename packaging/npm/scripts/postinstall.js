@@ -25,7 +25,7 @@ if (!asset) {
   process.exit(0);
 }
 
-const repo = process.env.SGIT_RELEASE_REPO || "AdonZ/SimpleGit";
+const repo = process.env.SGIT_RELEASE_REPO || "adonzone/SimpleGit";
 const baseUrl = `https://github.com/${repo}/releases/download/v${pkg.version}`;
 const vendorDir = path.join(__dirname, "..", "vendor");
 const destFile = path.join(vendorDir, process.platform === "win32" ? "sgit.exe" : "sgit");

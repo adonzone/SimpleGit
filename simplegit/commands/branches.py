@@ -12,6 +12,7 @@ from simplegit.core.operations import (
     merge_branch,
     switch_branch,
 )
+from simplegit.errors import SimpleGitError
 from simplegit.ui.render import render_branches
 from simplegit.ui.theme import THEME
 
@@ -40,7 +41,10 @@ def run_branch(args: argparse.Namespace) -> int:
     location = discover_repo()
     if args.delete:
         if not args.name:
-            raise SystemExit("Specify a branch name to delete.")
+            raise SimpleGitError(
+                "Specify a branch name to delete.",
+                hint="Usage: `sgit branch -d <branch-name>`",
+            )
         delete_branch(location.root, args.name, force=bool(args.force))
         print(THEME.success(f"✓ Deleted branch '{args.name}'."))
         return 0

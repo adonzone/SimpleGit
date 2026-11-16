@@ -15,7 +15,7 @@ Installers:
   - Architecture: x64
     InstallerType: portable
     NestedInstallerType: portable
-    InstallerUrl: https://github.com/AdonZ/SimpleGit/releases/download/v0.1.0/sgit-win32-x64.exe
+    InstallerUrl: https://github.com/adonzone/SimpleGit/releases/download/v0.1.0/sgit-win32-x64.exe
     InstallerSha256: REPLACE_WITH_WIN32_X64_SHA256
 ManifestType: singleton
 ManifestVersion: 1.6.0

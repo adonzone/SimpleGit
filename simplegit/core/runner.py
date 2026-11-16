@@ -29,8 +29,14 @@ def find_git_binary() -> str:
     git_path = shutil.which("git")
     if not git_path:
         raise GitNotFoundError(
-            message="`git` was not found on your PATH.",
-            hint="Install Git (e.g., `brew install git`, `choco install git`, or https://git-scm.com) and try again.",
+            message="`git` is not installed or was not found on your PATH.",
+            hint=(
+                "Install Git first:\n"
+                "    • macOS:   brew install git  (or `xcode-select --install`)\n"
+                "    • Windows: winget install Git.Git  (or `choco install git`)\n"
+                "    • Linux:   sudo apt install git  (or `sudo dnf install git`)\n"
+                "    • Docs:    https://git-scm.com/downloads  |  https://git-scm.com/doc"
+            ),
         )
     return git_path
 

@@ -5,7 +5,7 @@
   "license": "GPL-3.0-or-later",
   "repository": {
     "type": "git",
-    "url": "https://github.com/AdonZ/SimpleGit.git"
+    "url": "https://github.com/adonzone/SimpleGit.git"
   },
   "bin": {
     "sgit": "./bin/sgit.js"

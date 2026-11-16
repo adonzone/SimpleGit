@@ -23,6 +23,7 @@ from simplegit.core.extras import (
     set_remote_url,
 )
 from simplegit.core.native_git import discover_repo
+from simplegit.errors import SimpleGitError
 from simplegit.ui.theme import THEME
 
 
@@ -94,6 +95,21 @@ def _add_host_flags(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--ssh", action="store_true", help="Use SSH (`git@host:...`) instead of HTTPS")
 
 
+def _parse_savepoint_index(raw: str | None) -> int:
+    if not raw:
+        return 0
+    try:
+        idx = int(raw)
+    except ValueError as exc:
+        raise SimpleGitError(
+            f"Invalid savepoint index '{raw}'.",
+            hint="Use a non-negative number from `sgit savepoint list` (e.g. `sgit savepoint pop 0`).",
+        ) from exc
+    if idx < 0:
+        raise SimpleGitError("Savepoint index cannot be negative.")
+    return idx
+
+
 def run_savepoint(args: argparse.Namespace) -> int:
     location = discover_repo()
     action = args.action
@@ -107,7 +123,7 @@ def run_savepoint(args: argparse.Namespace) -> int:
         return 0
 
     if action in ("pop", "apply"):
-        idx = int(args.target) if args.target else 0
+        idx = _parse_savepoint_index(args.target)
         out = savepoint_pop(location.root, index=idx, keep=(action == "apply"))
         if out:
             print(out)
@@ -115,7 +131,7 @@ def run_savepoint(args: argparse.Namespace) -> int:
         return 0
 
     if action == "drop":
-        idx = int(args.target) if args.target else 0
+        idx = _parse_savepoint_index(args.target)
         savepoint_drop(location.root, index=idx)
         print(THEME.warn(f"✓ Dropped savepoint @{{{idx}}}."))
         return 0
